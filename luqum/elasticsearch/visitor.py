@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from luqum.elasticsearch.tree import ElasticSearchItemFactory
 from luqum.exceptions import OrAndAndOnSameLevel
 from luqum.tree import (
@@ -11,7 +12,7 @@ from ..check import CheckNestedFields
 
 
 class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
-    """
+    u"""
     Query builder to convert a Tree in an Elasticsearch query dsl (json)
 
     .. warning:: there are some limitations
@@ -37,12 +38,12 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
         https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-match-query.html
     """
 
-    SHOULD = 'should'
-    MUST = 'must'
+    SHOULD = u'should'
+    MUST = u'must'
 
-    def __init__(self, default_operator=SHOULD, default_field='text',
+    def __init__(self, default_operator=SHOULD, default_field=u'text',
                  not_analyzed_fields=None, nested_fields=None):
-        """
+        u"""
         :param default_operator: to replace blank operator (MUST or SHOULD)
         :param default_field: to search
         :param not_analyzed_fields: field that are not analyzed in ES
@@ -71,7 +72,7 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
         return normalize_nested_fields_specs(nested_fields)
 
     def simplify_if_same(self, children, current_node):
-        """
+        u"""
         If two same operation are nested, then simplify
         Should be use only with should and must operations because Not(Not(x))
         can't be simplified as Not(x)
@@ -81,12 +82,13 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
         """
         for child in children:
             if type(child) is type(current_node):
-                yield from self.simplify_if_same(child.children, current_node)
+                for item in self.simplify_if_same(child.children, current_node):
+                    yield item
             else:
                 yield child
 
     def _get_operator_extract(self, binary_operation, delta=8):
-        """
+        u"""
         Return an extract around the operator
         :param binary_operation: operator to extract
         :param delta: nb of characters to extract before and after the operator
@@ -97,9 +99,9 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
         >>> builder._get_operator_extract(operation, 3)
         'hon OR Mon'
         """
-        node_str = str(binary_operation)
-        child_str_1 = str(binary_operation.children[0])
-        child_str_2 = str(binary_operation.children[1])
+        node_str = unicode(binary_operation)
+        child_str_1 = unicode(binary_operation.children[0])
+        child_str_2 = unicode(binary_operation.children[1])
         middle_length = len(node_str) - len(child_str_1) - len(child_str_2)
         position = node_str.find(child_str_2)
         if position - middle_length - delta >= 0:
@@ -110,7 +112,7 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
         return node_str[start:end]
 
     def _is_must(self, operation):
-        """
+        u"""
         Returns True if the node is a AndOperation or an UnknownOperation when
         the default operator is MUST
         :param node: to check
@@ -128,7 +130,7 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
         )
 
     def _is_should(self, operation):
-        """
+        u"""
         Returns True if the node is a OrOperation or an UnknownOperation when
         the default operator is SHOULD
         >>> ElasticsearchQueryBuilder(
@@ -143,7 +145,7 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
         )
 
     def _yield_nested_children(self, parent, children):
-        """
+        u"""
         Raise if a OR (should) is in a AND (must) without being in parenthesis
 
         >>> builder = ElasticsearchQueryBuilder()
@@ -194,14 +196,14 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
         )
 
     def _set_fields_in_all_children(self, enode, field_name):
-        """
+        u"""
         Recursive method to set the field name even in nested enode.
         For instance in this case: field:(spam OR eggs OR (monthy AND python))
         """
         if isinstance(enode, AbstractEItem):
             enode.add_field(field_name)
         elif isinstance(enode, ENested):
-            nested_path_to_add = field_name.split('.' + enode.nested_path)[0]
+            nested_path_to_add = field_name.split(u'.' + enode.nested_path)[0]
             enode.add_nested_path(nested_path_to_add)
             self._set_fields_in_all_children(enode.items, field_name)
         else:
@@ -209,7 +211,7 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
                 self._set_fields_in_all_children(item, field_name)
 
     def _is_nested(self, node):
-        if isinstance(node, SearchField) and '.' in node.name:
+        if isinstance(node, SearchField) and u'.' in node.name:
             return True
 
         for child in node.children:
@@ -223,9 +225,9 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
     def _create_nested(self, node_name, items):
 
         nested_path = node_name
-        if '.' in node_name:
+        if u'.' in node_name:
             # reverse the list
-            nesteds_path = node_name.split('.')[::-1]
+            nesteds_path = node_name.split(u'.')[::-1]
             # the first is the search field not a path
             nested_path = nesteds_path.pop(1)
 
@@ -234,7 +236,7 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
 
         # if this is a paht with point(s) in it
         if nested_path != node_name and len(nesteds_path) > 1:
-            node_name = '.'.join(nesteds_path)
+            node_name = u'.'.join(nesteds_path)
             return self._create_nested(node_name, enode)
 
         return enode
@@ -290,8 +292,8 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
 
     def visit_range(self, node, parents, context):
         kwargs = {
-            'gte' if node.include_low else 'gt': node.low.value,
-            'lte' if node.include_high else 'lt': node.high.value,
+            u'gte' if node.include_low else u'gt': node.low.value,
+            u'lte' if node.include_high else u'lt': node.high.value,
         }
         return self.es_item_factory.build(ERange, **kwargs)
 
@@ -303,7 +305,7 @@ class ElasticsearchQueryBuilder(LuceneTreeVisitorV2):
         return fields
 
     def __call__(self, tree):
-        """Calling the query builder returns
+        u"""Calling the query builder returns
         you the json compatible structure corresponding to the request tree passed in parameter
 
         :param luqum.tree.Item tree: a luqum parse tree

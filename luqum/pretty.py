@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-"""This module provides a pretty printer for lucene query tree.
+u"""This module provides a pretty printer for lucene query tree.
 """
+from __future__ import absolute_import
 from .tree import BaseOperation, BaseGroup, SearchField
 
 
-class _StickMarker:
-    """Use in list between two elements that must stick together
+class _StickMarker(object):
+    u"""Use in list between two elements that must stick together
     """
 
     def __len__(self):
@@ -17,11 +18,11 @@ _STICK_MARKER = _StickMarker()
 
 
 class Prettifier(object):
-    """Class to generate a pretty printer.
+    u"""Class to generate a pretty printer.
     """
 
     def __init__(self, indent=4, max_len=80, inline_ops=False):
-        """
+        u"""
         The pretty printer factory.
 
         :param int indent: number of space for indentation
@@ -32,12 +33,12 @@ class Prettifier(object):
           if True, operators are printed at the end of the line.
         """
         self.indent = indent
-        self.prefix = " " * self.indent
+        self.prefix = u" " * self.indent
         self.max_len = max_len
         self.inline_ops = inline_ops
 
     def _get_chains(self, element, parent=None):
-        """return a list of string and list, and recursively
+        u"""return a list of string and list, and recursively
 
         An inner list represent a level of indentation
         A string is information from the level
@@ -45,11 +46,13 @@ class Prettifier(object):
         if isinstance(element, BaseOperation):
             if not isinstance(parent, BaseOperation) or element.op == parent.op:
                 # same level, this is just associativity
-                yield from self._get_chains(element.a, element)
+                for item in self._get_chains(element.a, element):
+                    yield item
                 if self.inline_ops:
                     yield _STICK_MARKER
                 yield element.op
-                yield from self._get_chains(element.b, element)
+                for item in self._get_chains(element.b, element):
+                    yield item
             else:
                 # another operation, raise level
                 yield (
@@ -59,22 +62,23 @@ class Prettifier(object):
                     list(self._get_chains(element.b, element)))
         elif isinstance(element, BaseGroup):
             # raise level
-            yield "("
+            yield u"("
             yield list(self._get_chains(element.expr, element))
             if self.inline_ops:
                 yield _STICK_MARKER
-            yield ")"
+            yield u")"
         elif isinstance(element, SearchField):
             # use recursion on sub expression
-            yield element.name + ":"
+            yield element.name + u":"
             yield _STICK_MARKER
-            yield from self._get_chains(element.expr, element)
+            for item in self._get_chains(element.expr, element):
+                yield item
         else:
             # simple element
-            yield str(element)
+            yield unicode(element)
 
     def _count_chars(self, element):
-        """Replace each element by the element and a count of chars in it (and recursively)
+        u"""Replace each element by the element and a count of chars in it (and recursively)
 
         This will help, compute if elements can stand on a line or not
         """
@@ -90,10 +94,10 @@ class Prettifier(object):
         sticking = False
         for current in elements:
             if current == _STICK_MARKER:
-                assert last is not None, "_STICK_MARKER should never be first !"
+                assert last is not None, u"_STICK_MARKER should never be first !"
                 sticking = True
             elif sticking:
-                last += " " + current
+                last += u" " + current
                 sticking = False
             else:
                 if last is not None:
@@ -102,7 +106,7 @@ class Prettifier(object):
         yield last
 
     def _concatenates(self, chain_with_counts, char_counts, level=0, in_one_liner=False):
-        """taking the result of _get_chains after passing through _count_chars,
+        u"""taking the result of _get_chains after passing through _count_chars,
         arrange things, using newlines and indentation when necessary
 
         :return string: prettified expression
@@ -116,12 +120,12 @@ class Prettifier(object):
             else c
             for c, n in chain_with_counts]
         elements = self._apply_stick(elements)
-        prefix = self.prefix if level and not in_one_liner else ""
-        join_char = " " if one_liner else ("\n" + prefix)
-        return prefix + join_char.join(l for c in elements for l in c.split("\n"))
+        prefix = self.prefix if level and not in_one_liner else u""
+        join_char = u" " if one_liner else (u"\n" + prefix)
+        return prefix + join_char.join(l for c in elements for l in c.split(u"\n"))
 
     def __call__(self, tree):
-        """Pretty print the query represented by tree
+        u"""Pretty print the query represented by tree
 
         :param tree: a query tree using elements from :py:mod:`luqum.tree`
         """
@@ -131,5 +135,5 @@ class Prettifier(object):
 
 
 prettify = Prettifier()
-"""prettify function with default parameters
+u"""prettify function with default parameters
 """

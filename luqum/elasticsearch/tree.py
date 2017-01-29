@@ -1,9 +1,10 @@
+from __future__ import absolute_import
 import abc
 import re
 
 
-class JsonSerializableMixin:
-    """
+class JsonSerializableMixin(object):
+    u"""
     Mixin to force subclasses to implement the json method
     """
 
@@ -14,7 +15,7 @@ class JsonSerializableMixin:
 
 
 class AbstractEItem(JsonSerializableMixin):
-    """
+    u"""
     Base item element to build the "item" json
     For instance : {"term": {"field": {"value": "query"}}}
     """
@@ -22,21 +23,21 @@ class AbstractEItem(JsonSerializableMixin):
     boost = None
     _fuzzy = None
 
-    _KEYS_TO_ADD = ('boost', 'fuzziness', )
+    _KEYS_TO_ADD = (u'boost', u'fuzziness', )
     ADDITIONAL_KEYS_TO_ADD = ()
 
-    def __init__(self, no_analyze=None, method='term', default_field='text'):
+    def __init__(self, no_analyze=None, method=u'term', default_field=u'text'):
         self._method = method
         self._default_field = default_field
         self._fields = []
         self._no_analyze = no_analyze if no_analyze else []
-        self.zero_terms_query = 'none'
+        self.zero_terms_query = u'none'
 
     @property
     def json(self):
 
         inner_json = {}
-        if self.method == 'query_string':
+        if self.method == u'query_string':
             json = {self.method: inner_json}
         else:
             json = {self.method: {self.field: inner_json}}
@@ -46,17 +47,17 @@ class AbstractEItem(JsonSerializableMixin):
         for key in keys:
             value = getattr(self, key)
             if value is not None:
-                if key == 'q' and self.method == 'match':
-                    inner_json['query'] = value
-                    inner_json['type'] = 'phrase'
-                    inner_json['zero_terms_query'] = self.zero_terms_query
-                elif key == 'q' and self.method == 'query_string':
-                    inner_json['query'] = value
-                    inner_json['analyze_wildcard'] = True
-                    inner_json['default_field'] = self.field
-                    inner_json['allow_leading_wildcard'] = True
-                elif key == 'q':
-                    inner_json['value'] = value
+                if key == u'q' and self.method == u'match':
+                    inner_json[u'query'] = value
+                    inner_json[u'type'] = u'phrase'
+                    inner_json[u'zero_terms_query'] = self.zero_terms_query
+                elif key == u'q' and self.method == u'query_string':
+                    inner_json[u'query'] = value
+                    inner_json[u'analyze_wildcard'] = True
+                    inner_json[u'default_field'] = self.field
+                    inner_json[u'allow_leading_wildcard'] = True
+                elif key == u'q':
+                    inner_json[u'value'] = value
                 else:
                     inner_json[key] = value
         return json
@@ -64,7 +65,7 @@ class AbstractEItem(JsonSerializableMixin):
     @property
     def field(self):
         if self._fields:
-            return '.'.join(self._fields)
+            return u'.'.join(self._fields)
         else:
             return self._default_field
 
@@ -77,11 +78,11 @@ class AbstractEItem(JsonSerializableMixin):
 
     @fuzziness.setter
     def fuzziness(self, fuzzy):
-        self._method = 'fuzzy'
+        self._method = u'fuzzy'
         self._fuzzy = fuzzy
 
     def _value_has_wildcard_char(self):
-        return any(char in getattr(self, 'q', '') for char in ['*', '?'])
+        return any(char in getattr(self, u'q', u'') for char in [u'*', u'?'])
 
     def _is_analyzed(self):
         return self.field in self._no_analyze
@@ -89,16 +90,16 @@ class AbstractEItem(JsonSerializableMixin):
     @property
     def method(self):
         if self._is_analyzed() and self._value_has_wildcard_char():
-            return 'wildcard'
+            return u'wildcard'
         elif not self._is_analyzed() and self._value_has_wildcard_char():
-            return 'query_string'
-        elif not self._is_analyzed() and self._method == 'term':
-            return 'match'
+            return u'query_string'
+        elif not self._is_analyzed() and self._method == u'term':
+            return u'match'
         return self._method
 
 
 class EWord(AbstractEItem):
-    """
+    u"""
     Build a word
     >>> from unittest import TestCase
     >>> TestCase().assertDictEqual(
@@ -111,21 +112,21 @@ class EWord(AbstractEItem):
     ... )
     """
 
-    ADDITIONAL_KEYS_TO_ADD = ('q', )
+    ADDITIONAL_KEYS_TO_ADD = (u'q', )
 
     def __init__(self, q, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(EWord, self).__init__(*args, **kwargs)
         self.q = q
 
     @property
     def json(self):
-        if self.q == '*':
-            return {"exists": {"field": self.field}}
-        return super().json
+        if self.q == u'*':
+            return {u"exists": {u"field": self.field}}
+        return super(EWord, self).json
 
 
 class EPhrase(AbstractEItem):
-    """
+    u"""
     Build a phrase
     >>> from unittest import TestCase
     >>> TestCase().assertDictEqual(
@@ -134,22 +135,22 @@ class EPhrase(AbstractEItem):
     ... )
     """
 
-    ADDITIONAL_KEYS_TO_ADD = ('query',)
+    ADDITIONAL_KEYS_TO_ADD = (u'query',)
     _proximity = None
 
     def __init__(self, phrase, *args, **kwargs):
-        super().__init__(method='match_phrase', *args, **kwargs)
+        super(EPhrase, self).__init__(method=u'match_phrase', *args, **kwargs)
         phrase = self._replace_CR_and_LF_by_a_whitespace(phrase)
         self.query = self._remove_double_quotes(phrase)
 
     def __repr__(self):
-        return "%s(%s=%s)" % (self.__class__.__name__, self.field, self.query)
+        return u"%s(%s=%s)" % (self.__class__.__name__, self.field, self.query)
 
     def _replace_CR_and_LF_by_a_whitespace(self, phrase):
-        return re.sub(r'\s+', ' ', phrase)
+        return re.sub(ur'\s+', u' ', phrase)
 
     def _remove_double_quotes(self, phrase):
-        return re.search(r'"(?P<value>.+)"', phrase).group("value")
+        return re.search(ur'"(?P<value>.+)"', phrase).group(u"value")
 
     @property
     def slop(self):
@@ -158,11 +159,11 @@ class EPhrase(AbstractEItem):
     @slop.setter
     def slop(self, slop):
         self._proximity = slop
-        self.ADDITIONAL_KEYS_TO_ADD += ('slop', )
+        self.ADDITIONAL_KEYS_TO_ADD += (u'slop', )
 
 
 class ERange(AbstractEItem):
-    """
+    u"""
     Build a range
     >>> from unittest import TestCase
     >>> TestCase().assertDictEqual(
@@ -172,19 +173,19 @@ class ERange(AbstractEItem):
     """
 
     def __init__(self, lt=None, lte=None, gt=None, gte=None, *args, **kwargs):
-        super().__init__(method='range', *args, **kwargs)
-        if lt and lt != '*':
+        super(ERange, self).__init__(method=u'range', *args, **kwargs)
+        if lt and lt != u'*':
             self.lt = lt
-            self.ADDITIONAL_KEYS_TO_ADD += ('lt', )
-        elif lte and lte != '*':
+            self.ADDITIONAL_KEYS_TO_ADD += (u'lt', )
+        elif lte and lte != u'*':
             self.lte = lte
-            self.ADDITIONAL_KEYS_TO_ADD += ('lte', )
-        if gt and gt != '*':
+            self.ADDITIONAL_KEYS_TO_ADD += (u'lte', )
+        if gt and gt != u'*':
             self.gt = gt
-            self.ADDITIONAL_KEYS_TO_ADD += ('gt', )
-        elif gte and gte != '*':
+            self.ADDITIONAL_KEYS_TO_ADD += (u'gt', )
+        elif gte and gte != u'*':
             self.gte = gte
-            self.ADDITIONAL_KEYS_TO_ADD += ('gte', )
+            self.ADDITIONAL_KEYS_TO_ADD += (u'gte', )
 
 
 class AbstractEOperation(JsonSerializableMixin):
@@ -192,7 +193,7 @@ class AbstractEOperation(JsonSerializableMixin):
 
 
 class EOperation(AbstractEOperation):
-    """
+    u"""
     Abstract operation taking care of the json build
     """
 
@@ -201,16 +202,16 @@ class EOperation(AbstractEOperation):
         self._method = None
 
     def __repr__(self):
-        items = ", ".join(i.__repr__() for i in self.items)
-        return "%s(%s)" % (self.__class__.__name__, items)
+        items = u", ".join(i.__repr__() for i in self.items)
+        return u"%s(%s)" % (self.__class__.__name__, items)
 
     @property
     def json(self):
-        return {'bool': {self.operation: [item.json for item in self.items]}}
+        return {u'bool': {self.operation: [item.json for item in self.items]}}
 
 
 class ENested(AbstractEOperation):
-    """
+    u"""
     Build ENested element
 
     Take care to remove ENested children
@@ -223,16 +224,16 @@ class ENested(AbstractEOperation):
 
     @property
     def nested_path(self):
-        return '.'.join(self._nested_path)
+        return u'.'.join(self._nested_path)
 
     def add_nested_path(self, nested_path):
         self._nested_path.insert(0, nested_path)
 
     def __repr__(self):
-        return "%s(%s, %s)" % (self.__class__.__name__, self.nested_path, self.items)
+        return u"%s(%s, %s)" % (self.__class__.__name__, self.nested_path, self.items)
 
     def _exclude_nested_children(self, subtree):
-        """
+        u"""
         Rebuild tree excluding ENested in children if some are present
 
         >>> from unittest import TestCase
@@ -240,7 +241,7 @@ class ENested(AbstractEOperation):
         ...     ENested(
         ...         nested_path='a',
         ...         nested_fields=['a'],
-        ...         items=EPhrase('"François"')
+        ...         items=EPhrase('"Francois"')
         ...     ),
         ...     ENested(
         ...         nested_path='a',
@@ -251,7 +252,7 @@ class ENested(AbstractEOperation):
         ...     nested_path='a', nested_fields=['a'], items=tree)
         >>> TestCase().assertEqual(
         ...     nested_node.__repr__(),
-        ...     'ENested(a, EMust(EPhrase(text=François), EPhrase(text=Dupont)))'
+        ...     'ENested(a, EMust(EPhrase(text=Francois), EPhrase(text=Dupont)))'
         ... )
         """
         if isinstance(subtree, ENested):
@@ -274,11 +275,11 @@ class ENested(AbstractEOperation):
 
     @property
     def json(self):
-        return {'nested': {'path': self.nested_path, 'query': self.items.json}}
+        return {u'nested': {u'path': self.nested_path, u'query': self.items.json}}
 
 
 class EShould(EOperation):
-    """
+    u"""
     Build a should operation
     >>> from unittest import TestCase
     >>> json = EShould(
@@ -292,20 +293,20 @@ class EShould(EOperation):
     ...     ]}}
     ... )
     """
-    operation = 'should'
+    operation = u'should'
 
 
 class AbstractEMustOperation(EOperation):
 
     def __init__(self, items):
-        op = super().__init__(items)
+        op = super(AbstractEMustOperation, self).__init__(items)
         for item in self.items:
             item.zero_terms_query = self.zero_terms_query
         return op
 
 
 class EMust(AbstractEMustOperation):
-    """
+    u"""
     Build a must operation
     >>> from unittest import TestCase
     >>> json = EMust(
@@ -319,12 +320,12 @@ class EMust(AbstractEMustOperation):
     ...     ]}}
     ... )
     """
-    zero_terms_query = 'all'
-    operation = 'must'
+    zero_terms_query = u'all'
+    operation = u'must'
 
 
 class EMustNot(AbstractEMustOperation):
-    """
+    u"""
     Build a must not operation
     >>> from unittest import TestCase
     >>> TestCase().assertDictEqual(
@@ -334,12 +335,12 @@ class EMustNot(AbstractEMustOperation):
     ...     ]}}
     ... )
     """
-    zero_terms_query = 'none'
-    operation = 'must_not'
+    zero_terms_query = u'none'
+    operation = u'must_not'
 
 
-class ElasticSearchItemFactory:
-    """
+class ElasticSearchItemFactory(object):
+    u"""
     Factory to preconfigure EItems and EOperation
     At the moment, it's only used to pass the _no_analyze field
     >>> from unittest import TestCase

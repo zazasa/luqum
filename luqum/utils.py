@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Various utilities for dealing with syntax trees.
+u"""Various utilities for dealing with syntax trees.
 
 Include base classes to implement a visitor pattern.
 
@@ -7,13 +7,13 @@ Include base classes to implement a visitor pattern.
 
 
 def camel_to_lower(name):
-    return "".join(
-        "_" + w.lower() if w.isupper() else w.lower()
-        for w in name).lstrip("_")
+    return u"".join(
+        u"_" + w.lower() if w.isupper() else w.lower()
+        for w in name).lstrip(u"_")
 
 
-class LuceneTreeVisitor:
-    """
+class LuceneTreeVisitor(object):
+    u"""
     Tree Visitor base class, inspired by python's :class:`ast.NodeVisitor`.
 
     This class is meant to be subclassed, with the subclass implementing
@@ -29,8 +29,8 @@ class LuceneTreeVisitor:
     If the goal is to modify the initial tree,
     use :py:class:`LuceneTreeTranformer` instead.
     """
-    visitor_method_prefix = 'visit_'
-    generic_visitor_method_name = 'generic_visit'
+    visitor_method_prefix = u'visit_'
+    generic_visitor_method_name = u'generic_visit'
 
     _get_method_cache = None
 
@@ -42,7 +42,7 @@ class LuceneTreeVisitor:
         except KeyError:
             for cls in node.__class__.mro():
                 try:
-                    method_name = "{}{}".format(
+                    method_name = u"{}{}".format(
                         self.visitor_method_prefix,
                         camel_to_lower(cls.__name__)
                     )
@@ -56,21 +56,23 @@ class LuceneTreeVisitor:
         return meth
 
     def visit(self, node, parents=[]):
-        """ Basic, recursive traversal of the tree. """
+        u""" Basic, recursive traversal of the tree. """
         method = self._get_method(node)
-        yield from method(node, parents)
+        for item in method(node, parents):
+            yield item
         for child in node.children:
-            yield from self.visit(child, parents + [node])
+            for item in self.visit(child, parents + [node]):
+                yield item
 
     def generic_visit(self, node, parents=[]):
-        """
+        u"""
         Default visitor function, called if nothing matches the current node.
         """
         return iter([])     # No-op
 
 
 class LuceneTreeTransformer(LuceneTreeVisitor):
-    """
+    u"""
     A :class:`LuceneTreeVisitor` subclass that walks the abstract syntax tree
     and allows modifications of traversed nodes.
 
@@ -90,7 +92,7 @@ class LuceneTreeTransformer(LuceneTreeVisitor):
         return node
 
     def visit(self, node, parents=[]):
-        """
+        u"""
         Recursively traverses the tree and replace nodes with the appropriate
         visitor methid's return values.
         """
@@ -106,7 +108,7 @@ class LuceneTreeTransformer(LuceneTreeVisitor):
 
 
 class LuceneTreeVisitorV2(LuceneTreeVisitor):
-    """
+    u"""
     V2 of the LuceneTreeVisitor allowing to evaluate the AST
 
     It differs from py:cls:`LuceneTreeVisitor`
@@ -127,7 +129,7 @@ class LuceneTreeVisitorV2(LuceneTreeVisitor):
     """
 
     def visit(self, node, parents=None, context=None):
-        """ Basic, recursive traversal of the tree.
+        u""" Basic, recursive traversal of the tree.
 
         :param list parents: the list of parents
         :parma dict context: a dict of contextual variable for free use
@@ -140,18 +142,18 @@ class LuceneTreeVisitorV2(LuceneTreeVisitor):
         return method(node, parents, context)
 
     def generic_visit(self, node, parents=None, context=None):
-        """
+        u"""
         Default visitor function, called if nothing matches the current node.
         """
         raise AttributeError(
-            "No visitor found for this type of node: {}".format(
+            u"No visitor found for this type of node: {}".format(
                 node.__class__
             )
         )
 
 
 def normalize_nested_fields_specs(nested_fields):
-    """normalize nested_fields specification to only have nested dicts
+    u"""normalize nested_fields specification to only have nested dicts
 
     :param dict nested_fields:  dict contains fields that are nested in ES
         each nested fields contains either
@@ -162,7 +164,7 @@ def normalize_nested_fields_specs(nested_fields):
     if nested_fields is None:
         return {}
     elif isinstance(nested_fields, dict):
-        return {k: normalize_nested_fields_specs(v) for k, v in nested_fields.items()}
+        return dict((k, normalize_nested_fields_specs(v)) for k, v in nested_fields.items())
     else:
         # should be an iterable, transform to dict
-        return {sub: {} for sub in nested_fields}
+        return dict((sub, {}) for sub in nested_fields)
